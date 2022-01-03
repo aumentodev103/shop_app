@@ -18,7 +18,10 @@ class OrderItem {
 }
 
 class Orders with ChangeNotifier {
+  final String authToken;
+  final String uid;
   late List<OrderItem> _orderItems = [];
+  Orders(this.authToken, this.uid, this._orderItems);
 
   List<OrderItem> get getOrderItems {
     return [..._orderItems];
@@ -40,9 +43,13 @@ class Orders with ChangeNotifier {
   //Place New Order
   Future<void> placeNewOrder(List<CartItem> cartItems, double total) async {
     const url = 'flutter-sasta-shopify-default-rtdb.firebaseio.com';
+    print("Order for uid $uid");
     final dateTime = DateTime.now();
-    const dir = "/orders.json";
-    final urlDir = Uri.https(url, dir);
+    final dir = "/orders/$uid.json";
+    var _params = {
+      'auth': authToken,
+    };
+    final urlDir = Uri.https(url, dir, _params);
     final bodyParams = json.encode({
       "amount": total,
       "cartItems": cartItems
@@ -79,27 +86,31 @@ class Orders with ChangeNotifier {
     debugPrint("Fetchiing Orders...");
     _orderItems = [];
     const url = 'flutter-sasta-shopify-default-rtdb.firebaseio.com';
-    const dir = "/orders.json";
-    final urlDir = Uri.https(url, dir);
+    final dir = "/orders/$uid.json";
+    var _params = {
+      'auth': authToken,
+    };
+    final urlDir = Uri.https(url, dir, _params);
 
     try {
       final reponse = await http.get(urlDir);
       final List<OrderItem> loadedOrders = [];
       var ordersJson = json.decode(reponse.body) as Map<String, dynamic>;
+      print(ordersJson);
       if (ordersJson == null) {
         return;
       }
       if (json.decode(reponse.body) != null) {
         ordersJson.forEach((orderId, orderData) {
-          print(orderData["cartItems"]);
+          print(orderId);
           loadedOrders.add(OrderItem(
             id: orderId,
-            amount: orderData["amount"],
+            amount: orderData["amount"].toDouble(),
             dateTime: DateTime.parse(orderData["dateTime"]),
             cartItems: (orderData["cartItems"] as List<dynamic>)
                 .map((item) => CartItem(
                       id: item["id"],
-                      price: item["price"],
+                      price: item["price"].toDouble(),
                       quantity: item["quantity"],
                       title: item["title"],
                     ))
@@ -110,6 +121,7 @@ class Orders with ChangeNotifier {
         });
       }
     } catch (error) {
+      print(error);
       rethrow;
     }
   }

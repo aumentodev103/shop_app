@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shop_app/providers/cart.dart';
 import 'package:shop_app/providers/product.dart';
+import 'package:shop_app/providers/auth.dart';
 import 'package:shop_app/screens/product_detail_screen.dart';
 
 class ProductItem extends StatelessWidget {
@@ -19,6 +20,7 @@ class ProductItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final product = Provider.of<Product>(context, listen: true);
     final cartProducts = Provider.of<Cart>(context, listen: false);
+    final authData = Provider.of<Auth>(context, listen: false);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
@@ -30,9 +32,17 @@ class ProductItem extends StatelessWidget {
               arguments: product.id,
             );
           },
-          child: Image.network(
-            product.imageUrl,
-            fit: BoxFit.cover,
+          child: Hero(
+            tag: product.id,
+            child: FadeInImage(
+              fit: BoxFit.cover,
+              placeholder: const AssetImage(
+                'assets/images/placeholderImage.png',
+              ),
+              image: NetworkImage(
+                product.imageUrl,
+              ),
+            ),
           ),
         ),
         footer: GridTileBar(
@@ -43,7 +53,7 @@ class ProductItem extends StatelessWidget {
               ),
               color: Theme.of(context).accentColor,
               onPressed: () {
-                product.toggleLikedStatus();
+                product.toggleLikedStatus(authData.token, authData.getUid);
               },
             ),
           ),
@@ -68,7 +78,7 @@ class ProductItem extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(snackbar);
             },
             icon: const Icon(Icons.shopping_bag),
-            color: Theme.of(context).accentColor,
+            color: Theme.of(context).colorScheme.secondary,
           ),
         ),
       ),

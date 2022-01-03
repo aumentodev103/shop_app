@@ -5,6 +5,11 @@ import 'package:shop_app/providers/product.dart';
 import 'package:http/http.dart' as http;
 
 class Products with ChangeNotifier {
+  final String authToken;
+  late String uid;
+
+  Products(this.authToken, this.uid, this.productList);
+
   late List<Product> productList = [
     // Product(
     //   id: 'p1',
@@ -60,15 +65,19 @@ class Products with ChangeNotifier {
   // Add Product to firebase
   Future<void> addProduct(Product product) async {
     const url = 'flutter-sasta-shopify-default-rtdb.firebaseio.com';
-    final dir = "/products.json?auth=$authToken";
-    final urlDir = Uri.https(url, dir);
+    const dir = "/products.json";
+    var _params = {
+      'auth': authToken,
+    };
+    final urlDir = Uri.https(url, dir, _params);
     final bodyParams = json.encode({
       "id": DateTime.now().toString(),
       "title": product.title,
       "description": product.description,
       "price": product.price,
       "imageUrl": product.imageUrl,
-      "isLiked": product.isLiked,
+      // "isLiked": product.isLiked,
+      "creatorId": uid,
     });
     try {
       final response = await http.post(urlDir, body: bodyParams);
@@ -82,7 +91,7 @@ class Products with ChangeNotifier {
       productList.add(newProduct);
 
       notifyListeners();
-      //  productList.insert(0,newProduct); this will add it on the top of the list.
+      // productList.insert(0,newProduct); this will add it on the top of the list.
       // return Future.value();
     } catch (error) {
       rethrow;
@@ -94,16 +103,20 @@ class Products with ChangeNotifier {
     final productIndex = productList.indexWhere((element) => element.id == id);
     if (productIndex >= 0) {
       const url = 'flutter-sasta-shopify-default-rtdb.firebaseio.com';
-      final dir = "/products/$id.json?auth=$authToken";
-      final urlDir = Uri.https(url, dir);
+      final dir = "/products/$id.json";
+      var _params = {
+        'auth': authToken,
+      };
+      final urlDir = Uri.https(url, dir, _params);
       final bodyParams = json.encode({
         "title": updatedProduct.title,
         "description": updatedProduct.description,
         "price": updatedProduct.price,
         "imageUrl": updatedProduct.imageUrl,
+        "creatorId": uid,
       });
 
-      final response = await http.patch(urlDir, body: bodyParams);
+      await http.patch(urlDir, body: bodyParams);
 
       productList[productIndex] = updatedProduct;
       notifyListeners();
@@ -115,8 +128,11 @@ class Products with ChangeNotifier {
   // Delete Product to firebase
   Future<void> deleteProduct(String id) async {
     const url = 'flutter-sasta-shopify-default-rtdb.firebaseio.com';
-    final dir = "/products/$id.json?auth=$authToken";
-    final urlDir = Uri.https(url, dir);
+    final dir = "/products/$id.json";
+    var _params = {
+      'auth': authToken,
+    };
+    final urlDir = Uri.https(url, dir, _params);
     final existingProductIndex =
         productList.indexWhere((element) => element.id == id);
     var existingProduct = productList[existingProductIndex];
@@ -142,21 +158,37 @@ class Products with ChangeNotifier {
   }
 
   // Fetch Products from firebase
-  Future<void> fetchAndLoadProducts() async {
-    debugPrint("Fetching products.......");
+  Future<void> fetchAndLoadProducts([bool filterByUser = false]) async {
+    print(" Filter By User ? ${filterByUser}");
+    var _params = filterByUser
+        ? {
+            'auth': authToken,
+            'orderBy': '"creatorId"',
+            'equalTo': '"$uid"',
+          }
+        : {'auth': authToken};
+    debugPrint("Fetching products.......$authToken");
+    print(" Filter By User ? ${_params}");
     productList = [];
-    const url = 'flutter-sasta-shopify-default-rtdb.firebaseio.com';
-    // final dir = "/products.json?auth=$authToken";
-    final dir = "/products.json?auth=$authToken";
-    final urlDir = Uri.https(url, dir);
+    const baseUrl = 'flutter-sasta-shopify-default-rtdb.firebaseio.com';
+    var pathname = "/products.json";
+
+    var url = Uri.https(baseUrl, pathname, _params);
 
     try {
-      final response = await http.get(urlDir, headers: {
-        'Content-Type': 'application/json',
-      });
-
+      final response = await http.get(url);
       final productJson = json.decode(response.body) as Map<String, dynamic>;
-      print(productJson);
+      if (json.decode(response.body) == null) {
+        return;
+      }
+      var pathname = "/userFavs/$uid.json";
+      var userParams = {
+        'auth': authToken,
+      };
+
+      url = Uri.https(baseUrl, pathname, userParams);
+      final responseFavs = await http.get(url);
+      final favsJson = json.decode(responseFavs.body) as Map<String, dynamic>;
       if (json.decode(response.body) != null) {
         productJson.forEach((productId, productData) {
           final object = Product(
@@ -165,18 +197,15 @@ class Products with ChangeNotifier {
             description: productData["description"],
             price: productData["price"],
             imageUrl: productData["imageUrl"],
-            isLiked: productData["isLiked"],
+            isLiked: favsJson == null ? false : favsJson[productId] ?? false,
           );
           productList.add(object);
           notifyListeners();
         });
       }
     } catch (error) {
+      print(error);
       rethrow;
     }
   }
-
-  final String authToken;
-
-  Products(this.authToken, this.productList);
 }

@@ -30,16 +30,19 @@ class Product with ChangeNotifier {
   //   http.patch(url)
   // }
 
-  Future<void> toggleLikedStatus() async {
+  Future<void> toggleLikedStatus(String token, String userId) async {
     final oldStatus = isLiked;
     isLiked = !isLiked;
     notifyListeners();
     const url = 'flutter-sasta-shopify-default-rtdb.firebaseio.com';
-    final dir = "/products/$id.json";
-    final urlDir = Uri.https(url, dir);
-    final bodyParams = json.encode({"isLiked": isLiked});
+    final dir = "userFavs/$userId/$id.json";
+    final params = {
+      'auth': token,
+    };
+    final urlDir = Uri.https(url, dir, params);
+    final bodyParams = json.encode(isLiked);
     try {
-      final response = await http.patch(urlDir, body: bodyParams);
+      await http.put(urlDir, body: bodyParams);
     } catch (error) {
       isLiked = oldStatus;
     }

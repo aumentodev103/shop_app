@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shop_app/helpers/custom_route.dart';
 import 'package:shop_app/providers/auth.dart';
 import 'package:shop_app/providers/cart.dart';
 import 'package:shop_app/providers/orders.dart';
@@ -11,6 +12,7 @@ import 'package:shop_app/screens/orders_screen.dart';
 import 'package:shop_app/screens/product_detail_screen.dart';
 import 'package:shop_app/screens/products_overview_screen.dart';
 import 'package:shop_app/screens/user_product.dart';
+import 'package:shop_app/widgets/splash_screen.dart';
 import './providers/products.dart';
 
 void main() {
@@ -38,11 +40,11 @@ class MyApp extends StatelessWidget {
         // ),
         ChangeNotifierProxyProvider<Auth, Products>(
           create: (ctx) {
-            return Products("", []);
+            return Products("", "", []);
           },
 
           update: (ctx, auth, previousProducts) {
-            return Products(auth.token,
+            return Products(auth.token, auth.getUid,
                 previousProducts == null ? [] : previousProducts.items);
           },
           // value: Products(),
@@ -55,21 +57,51 @@ class MyApp extends StatelessWidget {
           // value: Products(),
           create: (ctx) => Cart(),
         ),
-        ChangeNotifierProvider(
-          // value: Products(),
-          create: (ctx) => Orders(),
+        // ChangeNotifierProvider(
+        //   // value: Products(),
+        //   create: (ctx) => Orders(),
+        // ),
+
+        ChangeNotifierProxyProvider<Auth, Orders>(
+          create: (ctx) {
+            return Orders("", "", []);
+          },
+          update: (ctx, auth, previousProducts) {
+            return Orders(auth.token, auth.getUid,
+                previousProducts == null ? [] : previousProducts.getOrderItems);
+          },
         ),
       ],
       child: Consumer<Auth>(builder: (ctx, auth, _) {
-        print("Is Auth ${auth.isAuth.toString()}");
+        print(auth.token);
         return MaterialApp(
           title: 'Sasta Shopify',
           theme: ThemeData(
             primarySwatch: Colors.green,
-            accentColor: Colors.greenAccent,
+            primaryColorDark: Colors.deepPurple,
+            pageTransitionsTheme: PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: CustomPageTransitionBuilder(),
+                TargetPlatform.iOS: CustomPageTransitionBuilder(),
+              },
+            ),
+            colorScheme: const ColorScheme.light(
+              primary: Colors.deepPurple,
+              secondary: Colors.deepOrange,
+            ),
+            // accentColor: Colors.greenAccent,
             fontFamily: "Lato",
           ),
-          home: auth.isAuth ? ProductsOverviewScreen() : AuthScreen(),
+          home: auth.isAuth
+              ? ProductsOverviewScreen()
+              : FutureBuilder(
+                  future: auth.tryAutoLogin(),
+                  builder: (context, authResultSnapshot) =>
+                      authResultSnapshot.connectionState ==
+                              ConnectionState.waiting
+                          ? SplashScreen()
+                          : AuthScreen(),
+                ),
           debugShowCheckedModeBanner: false,
           initialRoute: "/",
           routes: {
