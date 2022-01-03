@@ -28,10 +28,29 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (ctx) => Auth(),
         ),
-        ChangeNotifierProvider(
+        // ChangeNotifierProxyProvider<Auth, Products>(
+        //   update: (ctx, auth, previousProduct) {
+        //     print(auth.token.toString());
+        //     return Products(auth.token,
+        //         previousProduct == null ? [] : previousProduct.items);
+        //   },
+        //   create: (ctx) => Products("", []),
+        // ),
+        ChangeNotifierProxyProvider<Auth, Products>(
+          create: (ctx) {
+            return Products("", []);
+          },
+
+          update: (ctx, auth, previousProducts) {
+            return Products(auth.token,
+                previousProducts == null ? [] : previousProducts.items);
+          },
           // value: Products(),
-          create: (ctx) => Products(),
         ),
+        // ChangeNotifierProvider(
+        //   // value: Products(),
+        //   create: (ctx) => Products(),
+        // ),
         ChangeNotifierProvider(
           // value: Products(),
           create: (ctx) => Cart(),
@@ -41,15 +60,16 @@ class MyApp extends StatelessWidget {
           create: (ctx) => Orders(),
         ),
       ],
-      child: Consumer<Auth>(
-        builder: (context, auth, child) => MaterialApp(
+      child: Consumer<Auth>(builder: (ctx, auth, _) {
+        print("Is Auth ${auth.isAuth.toString()}");
+        return MaterialApp(
           title: 'Sasta Shopify',
           theme: ThemeData(
             primarySwatch: Colors.green,
             accentColor: Colors.greenAccent,
             fontFamily: "Lato",
           ),
-          home: auth.isUserLoggedIn ? ProductDetailsScreen() : AuthScreen(),
+          home: auth.isAuth ? ProductsOverviewScreen() : AuthScreen(),
           debugShowCheckedModeBanner: false,
           initialRoute: "/",
           routes: {
@@ -59,8 +79,8 @@ class MyApp extends StatelessWidget {
             UserProductsScreen.routeName: (_) => const UserProductsScreen(),
             EditProductScreen.routeName: (_) => const EditProductScreen()
           },
-        ),
-      ),
+        );
+      }),
     );
   }
 }

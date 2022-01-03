@@ -5,8 +5,6 @@ import 'package:shop_app/providers/product.dart';
 import 'package:http/http.dart' as http;
 
 class Products with ChangeNotifier {
-  // var _showLikedOnly = false;
-
   late List<Product> productList = [
     // Product(
     //   id: 'p1',
@@ -51,7 +49,7 @@ class Products with ChangeNotifier {
 
   Product findById(String id) {
     final itemHasId = productList.firstWhere((element) => element.id == id);
-    print("${id} == ${itemHasId.id}");
+    // print("${id} == ${itemHasId.id}");
     return itemHasId;
   }
 
@@ -59,20 +57,10 @@ class Products with ChangeNotifier {
     return productList.where((element) => element.isLiked).toList();
   }
 
-  // void showLikedOnly() {
-  //   _showLikedOnly = true;
-  //   notifyListeners();
-  // }
-
-  // void showALL() {
-  //   _showLikedOnly = false;
-  //   notifyListeners();
-  // }
-
   // Add Product to firebase
   Future<void> addProduct(Product product) async {
     const url = 'flutter-sasta-shopify-default-rtdb.firebaseio.com';
-    const dir = "/products.json";
+    final dir = "/products.json?auth=$authToken";
     final urlDir = Uri.https(url, dir);
     final bodyParams = json.encode({
       "id": DateTime.now().toString(),
@@ -106,7 +94,7 @@ class Products with ChangeNotifier {
     final productIndex = productList.indexWhere((element) => element.id == id);
     if (productIndex >= 0) {
       const url = 'flutter-sasta-shopify-default-rtdb.firebaseio.com';
-      final dir = "/products/$id.json";
+      final dir = "/products/$id.json?auth=$authToken";
       final urlDir = Uri.https(url, dir);
       final bodyParams = json.encode({
         "title": updatedProduct.title,
@@ -127,7 +115,7 @@ class Products with ChangeNotifier {
   // Delete Product to firebase
   Future<void> deleteProduct(String id) async {
     const url = 'flutter-sasta-shopify-default-rtdb.firebaseio.com';
-    final dir = "/products/$id.json";
+    final dir = "/products/$id.json?auth=$authToken";
     final urlDir = Uri.https(url, dir);
     final existingProductIndex =
         productList.indexWhere((element) => element.id == id);
@@ -155,16 +143,21 @@ class Products with ChangeNotifier {
 
   // Fetch Products from firebase
   Future<void> fetchAndLoadProducts() async {
-    debugPrint("Fetchiing.......");
+    debugPrint("Fetching products.......");
     productList = [];
     const url = 'flutter-sasta-shopify-default-rtdb.firebaseio.com';
-    const dir = "/products.json";
+    // final dir = "/products.json?auth=$authToken";
+    final dir = "/products.json?auth=$authToken";
     final urlDir = Uri.https(url, dir);
 
     try {
-      final reponse = await http.get(urlDir);
-      final productJson = json.decode(reponse.body) as Map<String, dynamic>;
-      if (json.decode(reponse.body) != null) {
+      final response = await http.get(urlDir, headers: {
+        'Content-Type': 'application/json',
+      });
+
+      final productJson = json.decode(response.body) as Map<String, dynamic>;
+      print(productJson);
+      if (json.decode(response.body) != null) {
         productJson.forEach((productId, productData) {
           final object = Product(
             id: productId,
@@ -182,4 +175,8 @@ class Products with ChangeNotifier {
       rethrow;
     }
   }
+
+  final String authToken;
+
+  Products(this.authToken, this.productList);
 }
